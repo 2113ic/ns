@@ -1,0 +1,41 @@
+@use '../ns' as *;
+
+@include b('btn') {
+  content: 'btn';
+
+  > .#{bem('btn', 'inner')} {
+    content: 'x-btn__inner';
+  }
+
+  @include e('wrapper', 'item') {
+    content: 'wrapper, item';
+
+    @include m('disabled') {
+      content: 'wrapper,item > disabled';
+    }
+  }
+
+  @include is('light') {
+    content: 'is-light';
+    
+    @include e('item') {
+      content: 'is-light > item';
+    }
+  }
+
+  @include is('dark') {
+    content: 'is-dark';
+    
+    @include m('disabled') {
+      content: 'is-dark > disabled';
+    }
+  }
+  
+  @include m('error', 'danger') {
+    content: 'btn > error, danger';
+  }
+
+  @include m('disabled') {
+    content: 'btn > disabled';
+  }
+}
