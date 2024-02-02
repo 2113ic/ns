@@ -63,7 +63,7 @@ export function useNamespace<T extends NamespaceValue, R = NamespaceResult<T>>
     const block = `${prefix.concat('-')}${name}`
     const namespace = (...args: CommandArgs): string[] => Bem(mSeparator)(block, ...args)
 
-    namespace.is = (...args: CommandArgs): string[] => Bem(statePrefix)('', ...args)
+    namespace.is = (...args: CommandArgs): string[] => Bem(statePrefix)('', ...args).slice(1)
     namespace.child = (child: string, ...args: CommandArgs): string[] => {
       const childBlock = `${block}${eSeparator}${child}`
       return Bem(mSeparator)(childBlock, ...args)
@@ -79,7 +79,7 @@ export function useNamespace<T extends NamespaceValue, R = NamespaceResult<T>>
   if (Array.isArray(values)) {
     return values.map(genNamespace) as R
   } else {
-    if (typeof values !== 'object') throw new TypeError('Parameter is of incorrect type!')
+    if (typeof values !== 'object') throw new TypeError('Invalid parameter type. Expected an object.')
     const resultMap: Record<string, NamespaceResultItem> = {};
 
     for (const [key, value] of Object.entries(values)) {
