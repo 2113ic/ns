@@ -1,101 +1,91 @@
-export type NameSpaceOptions = (string | string[] | Record<string, boolean>)[]
-export type unBemFunction = (block: string, ...args: NameSpaceOptions) => string[]
+export type CommandArgs = (string | string[] | Record<string, boolean>)[]
+export type NamespaceValue = string | string[] | Record<string, string>
 
-export interface NameSpaceResult {
-  (...args: NameSpaceOptions): string[];
-  is: (...args: NameSpaceOptions) => string[];
-  child: (child: string, ...args: NameSpaceOptions) => string[];
+export type NamespaceResultItem = {
+  (...args: CommandArgs): string[]
+  is: (...args: CommandArgs) => string[]
+  child: (child: string, ...args: CommandArgs) => string[]
 }
 
-/**
- * Checks if the given value is a non-empty string.
- *
- * @param {any} v - The value to check.
- * @returns {boolean} True if the value is a non-empty string, false otherwise.
- */
-const isString = (v: any): boolean => v && typeof v === 'string';
+export type NamespaceResult<T> = T extends string ? NamespaceResultItem : T extends Array<string> ? NamespaceResultItem[] : Record<keyof T, NamespaceResultItem>
 
-/**
- * Factory function that creates a BEM (Block Element Modifier) utility.
- *
- * @param {string} [prefix='_'] - The prefix for BEM modifiers.
- * @returns {BemFunction} A BEM utility function.
- */
-export function Bem(prefix: string = '_'): unBemFunction {
-  /**
-   * BEM utility function.
-   *
-   * @param {string} block - The BEM block name.
-   * @param {...NameSpaceOptions} args - BEM modifiers and states.
-   * @returns {string[]} An array of generated class names.
-   */
-  return (block: string, ...args: NameSpaceOptions): string[] => {
-    const classNames = [block];
+export interface NamespaceOptions {
+  namespace?: string
+  eSeparator?: string
+  mSeparator?: string
+  statePrefix?: string
+}
+
+export const nsDefaultConfig = {
+  namespace: 'x',
+  eSeparator: '__',
+  mSeparator: '_',
+  statePrefix: 'is-',
+} as Required<NamespaceOptions>
+
+const isString = (v: any): boolean => v && typeof v === 'string'
+
+export function Bem(prefix: string = nsDefaultConfig.mSeparator) {
+  return (block: string, ...args: CommandArgs): string[] => {
+    const classNames = [block]
 
     for (const arg of args) {
       if (isString(arg)) {
         if (arg === 'default') continue
-        classNames.push(`${prefix}${arg}`);
-      } else if (Array.isArray(arg)) {
+        classNames.push(`${prefix}${arg}`)
+      }
+      else if (Array.isArray(arg)) {
         for (const modifier of arg) {
-          if (modifier === 'default') continue;
-          classNames.push(`${prefix}${modifier}`);
+          if (modifier === 'default') continue
+          classNames.push(`${prefix}${modifier}`)
         }
-      } else if (typeof arg === 'object') {
+      }
+      else if (typeof arg === 'object') {
         for (const key in arg) {
           if (key !== 'default' && arg[key]) {
-            classNames.push(`${prefix}${key}`);
+            classNames.push(`${prefix}${key}`)
           }
         }
       }
     }
-
-    return classNames;
-  };
+    return classNames
+  }
 }
 
-/**
- * Default BEM utility with an underscore (_) prefix.
- */
-export const unBem = Bem();
+export function useNamespace<T extends NamespaceValue, R = NamespaceResult<T>>
+(values: T, options: NamespaceOptions = nsDefaultConfig): R {
+  const { namespace: prefix, eSeparator, mSeparator, statePrefix } = {
+    ...nsDefaultConfig,
+    ...(options ?? {})
+  }
 
-/**
- * Hook for creating a BEM namespace.
- *
- * @param {string} name - The name of the BEM block.
- * @param {string} [prefix='x'] - The prefix for the BEM block.
- * @returns {NameSpaceResult} A BEM namespace utility function.
- */
-export function useNameSpace(name: string, prefix: string = 'x'): NameSpaceResult {
-  const block = `${prefix.concat('-')}${name}`;
+  function genNamespace(name: NamespaceValue) {
+    const block = `${prefix.concat('-')}${name}`
+    const namespace = (...args: CommandArgs): string[] => Bem(mSeparator)(block, ...args)
 
-  /**
-   * BEM namespace utility function.
-   *
-   * @param {...NameSpaceOptions} args - BEM modifiers and states.
-   * @returns {string[]} An array of generated class names.
-   */
-  const nameSpace = (...args: NameSpaceOptions): string[] => unBem(block, ...args);
+    namespace.is = (...args: CommandArgs): string[] => Bem(statePrefix)('', ...args)
+    namespace.child = (child: string, ...args: CommandArgs): string[] => {
+      const childBlock = `${block}${eSeparator}${child}`
+      return Bem(mSeparator)(childBlock, ...args)
+    }
 
-  /**
-   * BEM utility function for 'is-' states.
-   *
-   * @param {...NameSpaceOptions} args - BEM modifiers and states.
-   * @returns {string[]} An array of generated class names.
-   */
-  nameSpace.is = (...args: NameSpaceOptions): string[] => Bem('is-')('', ...args);
+    return namespace
+  }
 
-  /**
-   * BEM utility function for child elements.
-   *
-   * @param {string} child - The name of the child element.
-   * @param {...NameSpaceOptions} args - BEM modifiers and states.
-   * @returns {string[]} An array of generated class names.
-   */
-  nameSpace.child = (child: string, ...args: NameSpaceOptions): string[] => {
-    const childBlock = `${block}__${child}`;
-    return unBem(childBlock, ...args);
-  };
+  if (isString(values)) {
+    return genNamespace(values) as R
+  }
 
-  return nameSpace;
+  if (Array.isArray(values)) {
+    return values.map(genNamespace) as R
+  } else {
+    if (typeof values !== 'object') throw new TypeError('Parameter is of incorrect type!')
+    const resultMap: Record<string, NamespaceResultItem> = {};
+
+    for (const [key, value] of Object.entries(values)) {
+      resultMap[key] = genNamespace(value)
+    }
+
+    return resultMap as R
+  }
 }
