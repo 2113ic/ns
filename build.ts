@@ -1,4 +1,5 @@
 import { build } from 'vite'
+import dts from 'vite-plugin-dts'
 import { resolve, basename } from 'node:path'
 import fs from 'node:fs/promises'
 
@@ -6,6 +7,7 @@ start()
 
 async function start() {
   await build({
+    plugins: [dts({ outDir: '.' })],
     build: {
       lib: {
         entry: './src/index.ts',
